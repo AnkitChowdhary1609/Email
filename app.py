@@ -303,8 +303,8 @@ EMAILS:
 
 def analyze_client(client_name: str, emails: list[dict]) -> dict:
     """Use Gemini to extract structured project data from client emails."""
-    handled_by_list = list({e.get("handled_by") for e in emails if e.get("handled_by")})
-    primary_handler = handled_by_list[0] if handled_by_list else "Team"
+    handled_by_list = sorted(list({e.get("handled_by") for e in emails if e.get("handled_by")}))
+    primary_handler = ", ".join(handled_by_list) if handled_by_list else "Team"
 
     email_text = "\n\n---\n\n".join(
         f"Date: {e['date']}\nFrom: {e['from']}\nTo: {e.get('to', '')}\nHandled By: {e.get('handled_by', '')}\nSubject: {e['subject']}\n{e['body'][:1200]}"
@@ -423,12 +423,7 @@ def analyze():
 
     groups: dict[str, list] = defaultdict(list)
     for e in EMAILS:
-        if e.get("is_client"):
-            groups[e["brand"]].append(e)
-
-    if not groups:
-        for e in EMAILS:
-            groups[e["brand"]].append(e)
+        groups[e["brand"]].append(e)
 
     sorted_groups = sorted(groups.items(), key=lambda x: -len(x[1]))
     results = []

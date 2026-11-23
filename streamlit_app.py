@@ -113,29 +113,56 @@ window.sendQ = async function() {{
   }}
 
   const brand = (typeof selectedIndex !== 'undefined' && selectedIndex !== null && window.clientsData) ? window.clientsData[selectedIndex]?.brand_key : null;
-  const clientContext = JSON.stringify((window.clientsData || []).slice(0, 10));
+  let relevantClient = (brand && window.clientsData) ? window.clientsData.find(c => c.brand_key === brand) : null;
+  if (!relevantClient && window.clientsData) {{
+    for (const c of window.clientsData) {{
+      const name = (c.client_name || c.brand_key || '').toLowerCase();
+      if (name && q.toLowerCase().includes(name)) {{
+        relevantClient = c;
+        break;
+      }}
+    }}
+  }}
+  const clientContext = relevantClient ? JSON.stringify(relevantClient, null, 2) : JSON.stringify((window.clientsData || []).slice(0, 10), null, 2);
 
-  const promptText = `You are a project management assistant analyzing software client onboarding status.
-CLIENT DATA:
+  const promptText = `You are a project manager assistant analyzing software client onboarding status and emails.
+CLIENT AND RECENT EMAIL DATA:
 ${{clientContext}}
 
-QUERY:
-${{q}} (Scoped brand: ${{brand || 'All'}});
-Be concise and mention client stage, handling employee, and module status when relevant.`;
+USER QUESTION:
+${{q}}
+
+Answer clearly, mentioning dates, events, module status, and handling employee if relevant.`;
 
   try {{
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${{apiKey}}`;
-    const resp = await fetch(url, {{
-      method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{
-        contents: [{{ parts: [{{ text: promptText }}] }}]
-      }})
-    }});
-    const data = await resp.json();
+    const models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.8-flash"];
+    let reply = "";
+    let lastErr = "";
+
+    for (const modelName of models) {{
+      try {{
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${{modelName}}:generateContent?key=${{apiKey}}`;
+        const resp = await fetch(url, {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{
+            contents: [{{ parts: [{{ text: promptText }}] }}]
+          }})
+        }});
+        const data = await resp.json();
+        if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {{
+          reply = data.candidates[0].content.parts[0].text;
+          break;
+        }} else if (data?.error?.message) {{
+          lastErr = data.error.message;
+        }}
+      }} catch(mErr) {{
+        lastErr = mErr.message;
+      }}
+    }}
+
     thinking.remove();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response returned.";
-    addMsg(reply, 'bot');
+    addMsg(reply || (lastErr ? ("AI Error: " + lastErr) : "No response returned."), 'bot');
   }} catch(err) {{
     thinking.remove();
     addMsg("Error: " + err.message, 'bot');

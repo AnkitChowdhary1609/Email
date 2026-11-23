@@ -98,6 +98,64 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .stat-box .s-val{font-size:1.6rem;font-weight:800}
 .stat-box .s-label{font-size:.72rem;color:var(--muted);margin-top:2px}
 
+/* ═════ ONGOING VS LIVE TOGGLE BOXES ═════ */
+.tab-boxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.tab-box {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all .2s;
+  user-select: none;
+}
+.tab-box:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+  transform: translateY(-1px);
+}
+.tab-box.active {
+  border-color: var(--accent);
+  background: #1e1b3a;
+  box-shadow: 0 4px 20px rgba(124, 106, 247, 0.22);
+}
+.tab-box.live.active {
+  border-color: #06b6d4;
+  background: #0d2530;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.22);
+}
+.tab-box-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tab-box-icon {
+  font-size: 1.7rem;
+}
+.tab-box-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+.tab-box-desc {
+  font-size: 0.77rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.tab-box-count {
+  font-size: 2.1rem;
+  font-weight: 900;
+  padding-left: 14px;
+}
+
 /* ═════ ROW-WISE TRACKER ═════ */
 .table-header{
   display:grid;grid-template-columns:250px 220px 1fr 240px 90px;
@@ -460,15 +518,31 @@ async function doAnalyze(){
   }, 1000);
 }
 
+// ── Current View Tab ('ongoing' | 'live') ──────────
+window.currentTab = 'ongoing';
+function setTab(tab){
+  window.currentTab = tab;
+  renderSidebar();
+  renderRowView();
+}
+
 // ── Sidebar ────────────────────────────────────────
 function renderSidebar(){
   const list=document.getElementById('clientPills');
   list.innerHTML='';
   window.clientsData.forEach((c, idx)=>{
+    const isLive = c.overall_stage === 'go_live';
+    const isCurrentTab = (window.currentTab === 'live') === isLive;
     const s = STAGES[c.overall_stage]||STAGES.in_progress;
     const div=document.createElement('div');
     div.className='client-pill'+(idx===selectedIndex?' active':'');
-    div.onclick=()=>openDetail(idx);
+    if (!isCurrentTab) {
+      div.style.opacity = '0.45';
+    }
+    div.onclick=()=>{
+      window.currentTab = isLive ? 'live' : 'ongoing';
+      openDetail(idx);
+    };
     div.innerHTML=`
       <div class="pill-avatar" style="background:${col(c.brand_key)}">${ini(c.client_name||c.brand_key)}</div>
       <div class="pill-info">
@@ -492,20 +566,42 @@ function renderRowView(){
   document.querySelectorAll('.client-pill').forEach(p=>p.classList.remove('active'));
 
   const total = window.clientsData.length;
-  const inprog = window.clientsData.filter(c=>['in_progress','testing','onboarding'].includes(c.overall_stage)).length;
-  const confirmed = window.clientsData.filter(c=>c.overall_stage==='client_confirmed').length;
-  const live = window.clientsData.filter(c=>c.overall_stage==='go_live').length;
+  const ongoingClients = window.clientsData.map((c, idx) => ({ ...c, originalIndex: idx })).filter(c => c.overall_stage !== 'go_live');
+  const liveClients = window.clientsData.map((c, idx) => ({ ...c, originalIndex: idx })).filter(c => c.overall_stage === 'go_live');
+  const ongoing = ongoingClients.length;
+  const live = liveClients.length;
+
+  const displayClients = window.currentTab === 'live' ? liveClients : ongoingClients;
 
   let html = `
     <div class="dash-header">
       <h1>Client Onboarding Tracker</h1>
       <p>Row-by-row live tracking from requested modules to go-live delivery</p>
     </div>
-    <div class="stats-row">
-      <div class="stat-box"><div class="s-val">${total}</div><div class="s-label">Active Clients</div></div>
-      <div class="stat-box"><div class="s-val" style="color:var(--warn)">${inprog}</div><div class="s-label">In Development / Testing</div></div>
-      <div class="stat-box"><div class="s-val" style="color:#10b981">${confirmed}</div><div class="s-label">Confirmed by Client</div></div>
-      <div class="stat-box"><div class="s-val" style="color:#06b6d4">${live}</div><div class="s-label">Go Live ✓</div></div>
+
+    <!-- ONGOING VS LIVE TOGGLE BOXES -->
+    <div class="tab-boxes">
+      <div class="tab-box ${window.currentTab==='ongoing'?'active':''}" onclick="setTab('ongoing')">
+        <div class="tab-box-left">
+          <div class="tab-box-icon">⚡</div>
+          <div>
+            <div class="tab-box-title">Ongoing Clients</div>
+            <div class="tab-box-desc">Active development, testing & pending confirmations</div>
+          </div>
+        </div>
+        <div class="tab-box-count" style="color:var(--warn)">${ongoing}</div>
+      </div>
+
+      <div class="tab-box live ${window.currentTab==='live'?'active':''}" onclick="setTab('live')">
+        <div class="tab-box-left">
+          <div class="tab-box-icon">🚀</div>
+          <div>
+            <div class="tab-box-title">Live / Finished Clients</div>
+            <div class="tab-box-desc">Modules completed, approved & live in production</div>
+          </div>
+        </div>
+        <div class="tab-box-count" style="color:#06b6d4">${live}</div>
+      </div>
     </div>
 
     <div class="table-header">
@@ -517,81 +613,91 @@ function renderRowView(){
     </div>
     <div class="rows-container">`;
 
-  window.clientsData.forEach((c, idx) => {
-    const s = STAGES[c.overall_stage] || STAGES.in_progress;
-    const modules = c.modules || [];
-    const latestEvent = (c.timeline && c.timeline.length) ? c.timeline[c.timeline.length - 1] : null;
-
-    // Render modules checklist chips
-    let modulesHtml = '';
-    if (modules.length) {
-      modulesHtml = modules.slice(0, 3).map(m => {
-        const mi = MOD_ICONS[m.status] || MOD_ICONS.requested;
-        return `<div class="mod-pill">
-          <div class="mod-check-box ${mi.checkCls}">${mi.check}</div>
-          <span>${m.name}</span>
-        </div>`;
-      }).join('');
-      if (modules.length > 3) {
-        modulesHtml += `<span style="font-size:.72rem;color:var(--muted);align-self:center">+${modules.length - 3} more</span>`;
-      }
-    } else {
-      modulesHtml = `<span style="font-size:.75rem;color:var(--muted)">No modules extracted</span>`;
-    }
-
-    // Parcel update text
-    let parcelHtml = '';
-    if (latestEvent) {
-      parcelHtml = `
-        <div class="parcel-status-line">
-          <div class="parcel-status-dot" style="background:${s.dot}"></div>
-          <span>${latestEvent.event || 'Update recorded'}</span>
-        </div>
-        <div class="parcel-date">📅 ${latestEvent.date || 'Recent'} · ${latestEvent.actor === 'client' ? 'Client' : 'Team'}</div>`;
-    } else {
-      parcelHtml = `
-        <div class="parcel-status-line">
-          <div class="parcel-status-dot" style="background:${s.dot}"></div>
-          <span>${c.summary || 'In progress'}</span>
-        </div>
-        <div class="parcel-date">${c.email_count || 0} emails recorded</div>`;
-    }
-
+  if (!displayClients.length) {
     html += `
-      <div class="client-row" onclick="openDetail(${idx})">
-        <!-- Col 1: Client & Handler -->
-        <div class="col-client">
-          <div class="client-avatar" style="background:${col(c.brand_key)}">${ini(c.client_name || c.brand_key)}</div>
-          <div class="client-meta">
-            <div class="client-title">${c.client_name || c.brand_key}</div>
-            <div class="client-sub">${c.contact_email || '—'}</div>
-            ${c.handled_by ? `<div class="handler-tag">👤 ${c.handled_by}</div>` : ''}
-          </div>
-        </div>
-
-        <!-- Col 2: Pipeline Stage -->
-        <div class="col-stage">
-          <div class="stage-badge-sm ${s.cls}" style="border-color:currentColor">${s.label}</div>
-          <div class="row-progress"><div class="row-progress-fill" style="width:${s.pct}%"></div></div>
-          <div class="row-pct-text"><span>Progress</span><span>${s.pct}%</span></div>
-        </div>
-
-        <!-- Col 3: Modules -->
-        <div class="col-modules">
-          ${modulesHtml}
-        </div>
-
-        <!-- Col 4: Parcel update -->
-        <div class="col-parcel">
-          ${parcelHtml}
-        </div>
-
-        <!-- Col 5: Action -->
-        <div class="col-action">
-          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(${idx})">View →</button>
-        </div>
+      <div class="center-msg" style="height:32vh">
+        <div class="icon">${window.currentTab === 'live' ? '🚀' : '⚡'}</div>
+        <h2>${window.currentTab === 'live' ? 'No Live Clients Yet' : 'No Ongoing Clients'}</h2>
+        <p>${window.currentTab === 'live' ? 'Clients will move here once their stage reaches Go Live.' : 'All client requests have finished!'}</p>
       </div>`;
-  });
+  } else {
+    displayClients.forEach((c) => {
+      const idx = c.originalIndex;
+      const s = STAGES[c.overall_stage] || STAGES.in_progress;
+      const modules = c.modules || [];
+      const latestEvent = (c.timeline && c.timeline.length) ? c.timeline[c.timeline.length - 1] : null;
+
+      // Render modules checklist chips
+      let modulesHtml = '';
+      if (modules.length) {
+        modulesHtml = modules.slice(0, 3).map(m => {
+          const mi = MOD_ICONS[m.status] || MOD_ICONS.requested;
+          return `<div class="mod-pill">
+            <div class="mod-check-box ${mi.checkCls}">${mi.check}</div>
+            <span>${m.name}</span>
+          </div>`;
+        }).join('');
+        if (modules.length > 3) {
+          modulesHtml += `<span style="font-size:.72rem;color:var(--muted);align-self:center">+${modules.length - 3} more</span>`;
+        }
+      } else {
+        modulesHtml = `<span style="font-size:.75rem;color:var(--muted)">No modules extracted</span>`;
+      }
+
+      // Parcel update text
+      let parcelHtml = '';
+      if (latestEvent) {
+        parcelHtml = `
+          <div class="parcel-status-line">
+            <div class="parcel-status-dot" style="background:${s.dot}"></div>
+            <span>${latestEvent.event || 'Update recorded'}</span>
+          </div>
+          <div class="parcel-date">📅 ${latestEvent.date || 'Recent'} · ${latestEvent.actor === 'client' ? 'Client' : 'Team'}</div>`;
+      } else {
+        parcelHtml = `
+          <div class="parcel-status-line">
+            <div class="parcel-status-dot" style="background:${s.dot}"></div>
+            <span>${c.summary || 'In progress'}</span>
+          </div>
+          <div class="parcel-date">${c.email_count || 0} emails recorded</div>`;
+      }
+
+      html += `
+        <div class="client-row" onclick="openDetail(${idx})">
+          <!-- Col 1: Client & Handler -->
+          <div class="col-client">
+            <div class="client-avatar" style="background:${col(c.brand_key)}">${ini(c.client_name || c.brand_key)}</div>
+            <div class="client-meta">
+              <div class="client-title">${c.client_name || c.brand_key}</div>
+              <div class="client-sub">${c.contact_email || '—'}</div>
+              ${c.handled_by ? `<div class="handler-tag">👤 ${c.handled_by}</div>` : ''}
+            </div>
+          </div>
+
+          <!-- Col 2: Pipeline Stage -->
+          <div class="col-stage">
+            <div class="stage-badge-sm ${s.cls}" style="border-color:currentColor">${s.label}</div>
+            <div class="row-progress"><div class="row-progress-fill" style="width:${s.pct}%"></div></div>
+            <div class="row-pct-text"><span>Progress</span><span>${s.pct}%</span></div>
+          </div>
+
+          <!-- Col 3: Modules -->
+          <div class="col-modules">
+            ${modulesHtml}
+          </div>
+
+          <!-- Col 4: Parcel update -->
+          <div class="col-parcel">
+            ${parcelHtml}
+          </div>
+
+          <!-- Col 5: Action -->
+          <div class="col-action">
+            <button class="btn-ghost btn-sm" onclick="event.stopPropagation();openDetail(${idx})">View →</button>
+          </div>
+        </div>`;
+    });
+  }
 
   html += `</div>`;
   document.getElementById('mainArea').innerHTML = html;

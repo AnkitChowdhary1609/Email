@@ -394,6 +394,59 @@ def connect_account():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class CodeRequest(BaseModel):
+    code: str
+
+@app.post("/api/accounts/connect_code")
+def connect_code(payload: CodeRequest):
+    """Exchanges an authorization code or saves a refresh token for permanent access."""
+    import requests
+    token_url = "https://oauth2.googleapis.com/token"
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    if os.path.exists("credentials.json"):
+        try:
+            with open("credentials.json") as f:
+                cdata = json.load(f)
+            ci = cdata.get("installed") or cdata.get("web") or {}
+            client_id = ci.get("client_id", client_id)
+            client_secret = ci.get("client_secret", client_secret)
+        except Exception:
+            pass
+
+    for r_uri in ["https://emailcrawler.streamlit.app", "http://localhost", "http://localhost:8501", "urn:ietf:wg:oauth:2.0:oob"]:
+        try:
+            resp = requests.post(token_url, data={
+                "code": payload.code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": r_uri,
+                "grant_type": "authorization_code"
+            })
+            if resp.ok:
+                tdata = resp.json()
+                creds = Credentials(
+                    token=tdata.get("access_token"),
+                    refresh_token=tdata.get("refresh_token"),
+                    token_uri=token_url,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=SCOPES
+                )
+                svc = build("gmail", "v1", credentials=creds)
+                prof = svc.users().getProfile(userId="me").execute()
+                email = prof.get("emailAddress", "employee").lower()
+                clean_name = re.sub(r"[^a-zA-Z0-9_.@-]", "_", email)
+                token_file = TOKENS_DIR / f"{clean_name}.json"
+                with open(token_file, "w") as f:
+                    f.write(creds.to_json())
+                return {"success": True, "email": email}
+        except Exception as e:
+            print("Code exchange error:", e)
+
+    raise HTTPException(400, "Unable to exchange authorization code with Google")
+
+
 @app.delete("/api/accounts/{account_id}")
 def delete_account(account_id: str):
     """Remove a connected employee mailbox."""

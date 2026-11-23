@@ -1,8 +1,10 @@
-import os, json
+import os, json, re, requests
 from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
 load_dotenv()
 
@@ -14,7 +16,71 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Hide all Streamlit default chrome so the custom UI takes 100% full screen
+BASE_DIR = Path(__file__).resolve().parent
+HTML_FILE = BASE_DIR / "static" / "index.html"
+CLIENTS_CACHE_FILE = BASE_DIR / "clients_cache.json"
+
+# Resolve Google OAuth credentials from credentials.json or secrets
+CLIENT_ID = ""
+CLIENT_SECRET = ""
+REDIRECT_URI = "https://emailcrawler.streamlit.app"
+
+creds_file = BASE_DIR / "credentials.json"
+if creds_file.exists():
+    try:
+        with open(creds_file) as f:
+            cdata = json.load(f)
+        cinfo = cdata.get("installed") or cdata.get("web") or {}
+        CLIENT_ID = cinfo.get("client_id", "")
+        CLIENT_SECRET = cinfo.get("client_secret", "")
+    except Exception:
+        pass
+
+if not CLIENT_ID and hasattr(st, "secrets"):
+    CLIENT_ID = st.secrets.get("GOOGLE_CLIENT_ID", "")
+    CLIENT_SECRET = st.secrets.get("GOOGLE_CLIENT_SECRET", "")
+
+# ── Handle Google OAuth Callback (for live 'Connect Another Employee') ──
+newly_connected_email = None
+if "code" in st.query_params:
+    auth_code = st.query_params["code"]
+    token_url = "https://oauth2.googleapis.com/token"
+
+    for r_uri in [REDIRECT_URI, "http://localhost", "http://localhost:8501", "urn:ietf:wg:oauth:2.0:oob"]:
+        try:
+            resp = requests.post(token_url, data={
+                "code": auth_code,
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "redirect_uri": r_uri,
+                "grant_type": "authorization_code"
+            })
+            if resp.ok:
+                tdata = resp.json()
+                creds = Credentials(
+                    token=tdata.get("access_token"),
+                    refresh_token=tdata.get("refresh_token"),
+                    token_uri=token_url,
+                    client_id=CLIENT_ID,
+                    client_secret=CLIENT_SECRET,
+                    scopes=["https://www.googleapis.com/auth/gmail.readonly"]
+                )
+                svc = build("gmail", "v1", credentials=creds)
+                prof = svc.users().getProfile(userId="me").execute()
+                newly_connected_email = prof.get("emailAddress", "new_employee").lower()
+                clean_name = re.sub(r"[^a-zA-Z0-9_.@-]", "_", newly_connected_email)
+                tokens_dir = BASE_DIR / "tokens"
+                tokens_dir.mkdir(exist_ok=True)
+                with open(tokens_dir / f"{clean_name}.json", "w") as f:
+                    f.write(creds.to_json())
+                break
+        except Exception as e:
+            print("OAuth exchange error:", e)
+
+    try:
+        del st.query_params["code"]
+    except Exception:
+        pass
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -104,6 +170,7 @@ initial_script = f"""
 <script>
 window.__STREAMLIT_HOSTED__ = true;
 window.__GEMINI_API_KEY__ = "{GEMINI_API_KEY}";
+window.__GOOGLE_CLIENT_ID__ = "{CLIENT_ID}";
 window.__EMBEDDED_CLIENTS__ = {json.dumps(clients_data)};
 window.__EMBEDDED_ACCOUNTS__ = {json.dumps(accounts_data)};
 
@@ -125,6 +192,13 @@ document.addEventListener("DOMContentLoaded", function() {{
     }}
     if (typeof renderSidebar === 'function') renderSidebar();
     if (typeof renderRowView === 'function') renderRowView();
+  }}
+
+  const newEmail = "{newly_connected_email or ''}";
+  if (newEmail) {{
+    setTimeout(function() {{
+      if (typeof toast === 'function') toast(`✓ Successfully connected ${{newEmail}}!`, 6000);
+    }}, 1200);
   }}
 }});
 

@@ -12,6 +12,5 @@ token.json
 tokens/
 .streamlit/secrets.toml
 
-# Local cache & data
+# Local cache
 emails_cache.json
-clients_cache.json

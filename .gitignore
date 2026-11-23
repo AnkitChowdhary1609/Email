@@ -1,0 +1,16 @@
+# Python / Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+
+# Sensitive Secrets & Credentials (DO NOT COMMIT)
+.env
+credentials.json
+client_secret*.json
+token.json
+tokens/
+
+# Local cache & data
+emails_cache.json
+clients_cache.json

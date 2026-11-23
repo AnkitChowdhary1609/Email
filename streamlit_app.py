@@ -23,14 +23,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ── Paths & Constants ──────────────────────────────────────────
+# ── Paths & Constants (Absolute paths) ────────────────────────
+BASE_DIR     = Path(__file__).resolve().parent
 SCOPES       = ["https://www.googleapis.com/auth/gmail.readonly"]
-CACHE        = "emails_cache.json"
-CLIENT_CACHE = "clients_cache.json"
-TOKENS_DIR   = Path("tokens")
+CACHE        = BASE_DIR / "emails_cache.json"
+CLIENT_CACHE = BASE_DIR / "clients_cache.json"
+TOKENS_DIR   = BASE_DIR / "tokens"
 TOKENS_DIR.mkdir(exist_ok=True)
 
-# ── Secrets Resolver (Works for both Cloud Secrets and Local .env) ──
+# ── Secrets Resolver (Works for Cloud Secrets, .env, and UI inputs) ──
 def get_secret(key, default=""):
     try:
         if hasattr(st, "secrets") and key in st.secrets:
@@ -46,6 +47,7 @@ MAX_EMAILS     = int(get_secret("MAX_EMAILS", "300"))
 # Check for Gemini API Key
 if not GEMINI_API_KEY:
     st.error("⚠️ `GEMINI_API_KEY` is not set. Please add it to your Streamlit Cloud Secrets or `.env` file.")
+    st.info("In Streamlit Cloud: Go to App Settings ➔ Secrets ➔ Add `GEMINI_API_KEY = '...'`")
     st.stop()
 
 @st.cache_resource
@@ -58,13 +60,10 @@ gemini = get_gemini_client()
 # ── Custom CSS for Modern Row-Wise Dashboard ──────────────────
 st.markdown("""
 <style>
-    /* Metric Cards */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 800;
     }
-    
-    /* Client Card Row */
     .client-card-row {
         background: #131722;
         border: 1px solid #263045;
@@ -77,8 +76,6 @@ st.markdown("""
         border-color: #7c6af7;
         box-shadow: 0 4px 16px rgba(124, 106, 247, 0.12);
     }
-
-    /* Handler Tag */
     .handler-badge {
         display: inline-block;
         background: #232b40;
@@ -89,8 +86,6 @@ st.markdown("""
         font-weight: 600;
         margin-top: 4px;
     }
-
-    /* Stage Badges */
     .stage-badge {
         display: inline-block;
         padding: 3px 12px;
@@ -105,8 +100,6 @@ st.markdown("""
     .badge-testing { background: #3b0764; color: #d8b4fe; border: 1px solid #a855f7; }
     .badge-client_confirmed { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
     .badge-go_live { background: #164e63; color: #67e8f9; border: 1px solid #06b6d4; }
-
-    /* Module Checklist Chips */
     .mod-chip {
         display: inline-flex;
         align-items: center;
@@ -121,8 +114,6 @@ st.markdown("""
     .mod-chip.done { border-color: #10b981; color: #6ee7b7; }
     .mod-chip.inprog { border-color: #f59e0b; color: #fcd34d; }
     .mod-chip.sent { border-color: #a855f7; color: #d8b4fe; }
-
-    /* Timeline Box (Parcel delivery style) */
     .timeline-box {
         background: #1a2030;
         border-left: 3px solid #7c6af7;
@@ -134,31 +125,58 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── Multi-Source Gmail Credential Resolver (Cloud & Local) ────
+# ── Multi-Source Gmail Credential Resolver (Cloud, UI & Local) ─
+
+if "custom_accounts" not in st.session_state:
+    st.session_state.custom_accounts = []
+
 
 def get_all_employee_credentials() -> list[dict]:
     """
-    Finds credentials from:
-    1. Streamlit Cloud Secrets ([employee_1], [employee_2], etc.)
-    2. Local tokens/ directory (*.json)
+    Finds credentials in priority:
+    1. UI added accounts (st.session_state.custom_accounts)
+    2. Streamlit Cloud Secrets ([employee_1], [employee_2], etc.)
+    3. Flat Streamlit Secrets (GMAIL_CLIENT_ID, GMAIL_REFRESH_TOKEN)
+    4. Local tokens/ directory (*.json)
     """
     accounts = []
 
-    # 1. Check Streamlit Secrets for defined employees
+    # 1. Accounts added dynamically via UI
+    for acc in st.session_state.custom_accounts:
+        if not any(a["email"] == acc["email"] for a in accounts):
+            accounts.append(acc)
+
+    # 2. Check Streamlit Secrets (nested tables [employee_1], [employee_2], [google_oauth])
     if hasattr(st, "secrets"):
         for key in st.secrets:
-            sec = st.secrets[key]
-            if isinstance(sec, dict) and "refresh_token" in sec and "client_id" in sec:
-                email = sec.get("email", key)
+            try:
+                sec = st.secrets[key]
+                if isinstance(sec, dict) and "refresh_token" in sec and "client_id" in sec:
+                    email = sec.get("email", key)
+                    if not any(a["email"] == email for a in accounts):
+                        accounts.append({
+                            "email": email,
+                            "source": "secrets",
+                            "client_id": sec["client_id"],
+                            "client_secret": sec.get("client_secret", ""),
+                            "refresh_token": sec["refresh_token"],
+                        })
+            except Exception:
+                pass
+
+        # 3. Check flat Streamlit Secrets (GMAIL_CLIENT_ID, GMAIL_REFRESH_TOKEN)
+        if "GMAIL_REFRESH_TOKEN" in st.secrets and "GMAIL_CLIENT_ID" in st.secrets:
+            email = st.secrets.get("GMAIL_USER_EMAIL", "default_employee")
+            if not any(a["email"] == email for a in accounts):
                 accounts.append({
                     "email": email,
                     "source": "secrets",
-                    "client_id": sec["client_id"],
-                    "client_secret": sec.get("client_secret", ""),
-                    "refresh_token": sec["refresh_token"],
+                    "client_id": st.secrets["GMAIL_CLIENT_ID"],
+                    "client_secret": st.secrets.get("GMAIL_CLIENT_SECRET", ""),
+                    "refresh_token": st.secrets["GMAIL_REFRESH_TOKEN"],
                 })
 
-    # 2. Check local tokens/ directory
+    # 4. Check local tokens/ directory
     for tf in TOKENS_DIR.glob("*.json"):
         try:
             d = json.load(open(tf))
@@ -194,7 +212,6 @@ def build_gmail_service_for_account(acc: dict):
     )
     if not creds.valid or creds.expired:
         creds.refresh(Request())
-        # If backed by a local file, persist the refreshed token
         if acc.get("source") == "file" and acc.get("token_path"):
             try:
                 with open(acc["token_path"], "w") as f:
@@ -261,7 +278,7 @@ def is_client_email(brand: str, sender: str) -> bool:
 def fetch_emails_across_mailboxes() -> list[dict]:
     accounts = get_all_employee_credentials()
     if not accounts:
-        st.error("No Gmail accounts found. Please configure your credentials in Streamlit Secrets or `.env`.")
+        st.error("No Gmail accounts found.")
         return []
 
     all_emails = {}
@@ -479,7 +496,27 @@ with st.sidebar:
             st.markdown(f"🟢 **{acc['email']}**")
     else:
         st.warning("No mailboxes configured.")
-        st.caption("Paste your Google refresh token into Streamlit Secrets to enable automatic syncing.")
+
+    # In-App Add / Connect Employee Mailbox Form
+    with st.expander("➕ Connect Mailbox Directly"):
+        st.caption("Enter your Gmail OAuth credentials:")
+        inp_email = st.text_input("Employee Email", placeholder="user@gmail.com")
+        inp_refresh = st.text_input("Refresh Token", placeholder="1//...", type="password")
+        inp_cid = st.text_input("Client ID", placeholder="...apps.googleusercontent.com")
+        inp_csec = st.text_input("Client Secret", placeholder="GOCSPX-...", type="password")
+        if st.button("Connect & Save", use_container_width=True):
+            if inp_email and inp_refresh and inp_cid:
+                st.session_state.custom_accounts.append({
+                    "email": inp_email,
+                    "refresh_token": inp_refresh,
+                    "client_id": inp_cid,
+                    "client_secret": inp_csec,
+                    "source": "ui"
+                })
+                st.success(f"Connected {inp_email}!")
+                st.rerun()
+            else:
+                st.error("Please fill in email, refresh token, and client id.")
 
     st.divider()
 
@@ -527,7 +564,14 @@ filtered_clients = [
 
 if not filtered_clients:
     if not clients:
-        st.info("👋 Welcome! Click **'⟳ Sync Team Mailboxes'** and then **'🧠 Analyze Clients (AI)'** in the sidebar to populate your live tracker.")
+        st.info("👋 Ready to sync! Click **'⟳ Sync Team Mailboxes'** and then **'🧠 Analyze Clients (AI)'** in the sidebar to populate your live tracker.")
+        
+        # If no accounts are detected yet, show setup guide
+        if not accounts:
+            st.markdown("""
+            ### 🔑 Quick Setup for Streamlit Cloud:
+            Go to **App Settings ➔ Secrets** in Streamlit Cloud and paste your secrets to start syncing automatically.
+            """)
     else:
         st.info("No clients match your filter.")
 else:

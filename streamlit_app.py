@@ -30,7 +30,7 @@ CLIENT_CACHE = "clients_cache.json"
 TOKENS_DIR   = Path("tokens")
 TOKENS_DIR.mkdir(exist_ok=True)
 
-# API Keys & Secrets (Checks both st.secrets and environment)
+# ── Secrets Resolver (Works for both Cloud Secrets and Local .env) ──
 def get_secret(key, default=""):
     try:
         if hasattr(st, "secrets") and key in st.secrets:
@@ -45,7 +45,7 @@ MAX_EMAILS     = int(get_secret("MAX_EMAILS", "300"))
 
 # Check for Gemini API Key
 if not GEMINI_API_KEY:
-    st.error("⚠️ GEMINI_API_KEY is not set. Please add it to your .env file or Streamlit Secrets.")
+    st.error("⚠️ `GEMINI_API_KEY` is not set. Please add it to your Streamlit Cloud Secrets or `.env` file.")
     st.stop()
 
 @st.cache_resource
@@ -69,12 +69,13 @@ st.markdown("""
         background: #131722;
         border: 1px solid #263045;
         border-radius: 12px;
-        padding: 18px 22px;
-        margin-bottom: 14px;
-        transition: border-color .2s;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        transition: all .2s;
     }
     .client-card-row:hover {
         border-color: #7c6af7;
+        box-shadow: 0 4px 16px rgba(124, 106, 247, 0.12);
     }
 
     /* Handler Tag */
@@ -121,7 +122,7 @@ st.markdown("""
     .mod-chip.inprog { border-color: #f59e0b; color: #fcd34d; }
     .mod-chip.sent { border-color: #a855f7; color: #d8b4fe; }
 
-    /* Timeline Event */
+    /* Timeline Box (Parcel delivery style) */
     .timeline-box {
         background: #1a2030;
         border-left: 3px solid #7c6af7;
@@ -133,36 +134,76 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── Gmail Multi-Employee Token Management ──────────────────────
+# ── Multi-Source Gmail Credential Resolver (Cloud & Local) ────
 
-def get_token_files() -> list[Path]:
-    return sorted(list(TOKENS_DIR.glob("*.json")))
+def get_all_employee_credentials() -> list[dict]:
+    """
+    Finds credentials from:
+    1. Streamlit Cloud Secrets ([employee_1], [employee_2], etc.)
+    2. Local tokens/ directory (*.json)
+    """
+    accounts = []
 
-def get_gmail_service_for_token(token_path: Path):
-    creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
-    if not creds:
-        raise ValueError(f"Invalid credentials in {token_path}")
-    if creds.expired and creds.refresh_token:
+    # 1. Check Streamlit Secrets for defined employees
+    if hasattr(st, "secrets"):
+        for key in st.secrets:
+            sec = st.secrets[key]
+            if isinstance(sec, dict) and "refresh_token" in sec and "client_id" in sec:
+                email = sec.get("email", key)
+                accounts.append({
+                    "email": email,
+                    "source": "secrets",
+                    "client_id": sec["client_id"],
+                    "client_secret": sec.get("client_secret", ""),
+                    "refresh_token": sec["refresh_token"],
+                })
+
+    # 2. Check local tokens/ directory
+    for tf in TOKENS_DIR.glob("*.json"):
+        try:
+            d = json.load(open(tf))
+            if d.get("refresh_token") and d.get("client_id"):
+                email = tf.stem.replace("_", ".")
+                if not any(a["email"] == email for a in accounts):
+                    accounts.append({
+                        "email": email,
+                        "source": "file",
+                        "token_path": tf,
+                        "client_id": d["client_id"],
+                        "client_secret": d.get("client_secret", ""),
+                        "refresh_token": d["refresh_token"],
+                    })
+        except Exception:
+            pass
+
+    return accounts
+
+
+def build_gmail_service_for_account(acc: dict):
+    """
+    Builds a Gmail API service using the permanent refresh_token.
+    Automatically refreshes expired access tokens in the background with zero user prompts.
+    """
+    creds = Credentials(
+        token=None,
+        refresh_token=acc["refresh_token"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=acc["client_id"],
+        client_secret=acc["client_secret"],
+        scopes=SCOPES
+    )
+    if not creds.valid or creds.expired:
         creds.refresh(Request())
-        with open(token_path, "w") as f:
-            f.write(creds.to_json())
+        # If backed by a local file, persist the refreshed token
+        if acc.get("source") == "file" and acc.get("token_path"):
+            try:
+                with open(acc["token_path"], "w") as f:
+                    f.write(creds.to_json())
+            except Exception:
+                pass
+
     return build("gmail", "v1", credentials=creds)
 
-def authorize_new_employee():
-    cred_file = Path("credentials.json")
-    if not cred_file.exists():
-        st.error("Missing `credentials.json`. Place your Google OAuth desktop credentials in the app root.")
-        return None
-    flow = InstalledAppFlow.from_client_secrets_file(str(cred_file), SCOPES)
-    creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
-    svc = build("gmail", "v1", credentials=creds)
-    prof = svc.users().getProfile(userId="me").execute()
-    email = prof.get("emailAddress", f"employee_{len(get_token_files())+1}").lower()
-    clean_name = re.sub(r"[^a-zA-Z0-9_.@-]", "_", email)
-    token_file = TOKENS_DIR / f"{clean_name}.json"
-    with open(token_file, "w") as f:
-        f.write(creds.to_json())
-    return email
 
 def body_text(payload) -> str:
     if payload.get("mimeType") == "text/plain" and payload.get("body", {}).get("data"):
@@ -172,6 +213,7 @@ def body_text(payload) -> str:
         if t:
             return t
     return ""
+
 
 SKIP_DOMAINS = {
     "gmail", "yahoo", "outlook", "hotmail", "icloud", "protonmail",
@@ -190,6 +232,7 @@ KNOWN_BRANDS = {
     "github": "GitHub", "anthropic": "Anthropic", "openai": "OpenAI",
 }
 
+
 def brand_from_sender(sender: str) -> str:
     name, addr = parseaddr(sender)
     domain = addr.split("@")[-1].lower() if "@" in addr else ""
@@ -206,6 +249,7 @@ def brand_from_sender(sender: str) -> str:
         return (name or addr).strip() or "Personal"
     return KNOWN_BRANDS.get(root.lower(), root.capitalize())
 
+
 def is_client_email(brand: str, sender: str) -> bool:
     _, addr = parseaddr(sender)
     domain = addr.split("@")[-1].lower() if "@" in addr else ""
@@ -213,22 +257,20 @@ def is_client_email(brand: str, sender: str) -> bool:
     root = parts[-2] if len(parts) >= 2 else domain
     return root not in SKIP_DOMAINS
 
-def fetch_emails() -> list[dict]:
-    token_files = get_token_files()
-    if not token_files:
-        emp = authorize_new_employee()
-        if not emp:
-            return []
-        token_files = get_token_files()
+
+def fetch_emails_across_mailboxes() -> list[dict]:
+    accounts = get_all_employee_credentials()
+    if not accounts:
+        st.error("No Gmail accounts found. Please configure your credentials in Streamlit Secrets or `.env`.")
+        return []
 
     all_emails = {}
-    per_account_limit = max(50, MAX_EMAILS // max(1, len(token_files)))
+    per_account_limit = max(50, MAX_EMAILS // max(1, len(accounts)))
 
-    for tf in token_files:
+    for acc in accounts:
         try:
-            svc = get_gmail_service_for_token(tf)
-            prof = svc.users().getProfile(userId="me").execute()
-            emp_email = prof.get("emailAddress", tf.stem)
+            svc = build_gmail_service_for_account(acc)
+            emp_email = acc["email"]
 
             ids, token = [], None
             while len(ids) < per_account_limit:
@@ -264,15 +306,18 @@ def fetch_emails() -> list[dict]:
                 except Exception:
                     pass
         except Exception as e:
-            st.warning(f"Error accessing mailbox {tf.stem}: {e}")
+            st.warning(f"Error accessing {acc['email']}: {e}")
 
     emails_list = list(all_emails.values())
-    with open(CACHE, "w") as f:
-        json.dump(emails_list, f)
+    try:
+        with open(CACHE, "w") as f:
+            json.dump(emails_list, f)
+    except Exception:
+        pass
     return emails_list
 
 
-# ── AI Client Analysis Prompt ────────────────────────────────
+# ── AI Client Onboarding Analysis ────────────────────────────
 
 ANALYSIS_PROMPT = """
 You are a project manager AI analyzing email threads between a software company and their clients.
@@ -292,7 +337,7 @@ Schema:
     {{
       "name": "Module or feature name",
       "status": "one of: requested | in_development | update_sent | client_confirmed | go_live",
-      "notes": "Brief notes"
+      "notes": "Brief notes on status"
     }}
   ],
   "timeline": [
@@ -372,12 +417,15 @@ def run_full_analysis(emails: list[dict]):
         results.append(c_data)
 
     prog_bar.empty()
-    with open(CLIENT_CACHE, "w") as f:
-        json.dump(results, f)
+    try:
+        with open(CLIENT_CACHE, "w") as f:
+            json.dump(results, f)
+    except Exception:
+        pass
     return results
 
 
-# ── Load Saved Data into Session ──────────────────────────────
+# ── Load Session State ────────────────────────────────────────
 if "emails" not in st.session_state:
     if os.path.exists(CACHE):
         try:
@@ -397,7 +445,7 @@ if "clients" not in st.session_state:
         st.session_state.clients = []
 
 
-# ── SIDEBAR CONTROLS ──────────────────────────────────────────
+# ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.title("📬 Mail Brain")
     st.caption("Multi-Employee Client Onboarding Tracker")
@@ -405,38 +453,33 @@ with st.sidebar:
 
     # Sync Mailboxes
     if st.button("⟳ Sync Team Mailboxes", use_container_width=True, type="secondary"):
-        with st.spinner("Fetching latest emails across all connected mailboxes..."):
-            fetched = fetch_emails()
+        with st.spinner("Fetching emails across all connected mailboxes..."):
+            fetched = fetch_emails_across_mailboxes()
             st.session_state.emails = fetched
             st.success(f"Synced {len(fetched)} emails!")
 
-    # Analyze
+    # Analyze Clients
     if st.button("🧠 Analyze Clients (AI)", use_container_width=True, type="primary"):
         if not st.session_state.emails:
             st.warning("Please click 'Sync Team Mailboxes' first.")
         else:
-            with st.spinner("Running Gemini AI onboarding extraction..."):
+            with st.spinner("Running Gemini AI onboarding analysis..."):
                 analyzed = run_full_analysis(st.session_state.emails)
                 st.session_state.clients = analyzed
-                st.success(f"Tracked {len(analyzed)} clients!")
+                st.success(f"Generated tracking for {len(analyzed)} clients!")
                 st.rerun()
 
     st.divider()
 
-    # Connected Mailboxes Section
+    # Connected Employee Accounts Display
     st.subheader("👥 Connected Mailboxes")
-    token_files = get_token_files()
-    if token_files:
-        for tf in token_files:
-            st.markdown(f"🟢 **{tf.stem.replace('_', '.')}**")
+    accounts = get_all_employee_credentials()
+    if accounts:
+        for acc in accounts:
+            st.markdown(f"🟢 **{acc['email']}**")
     else:
-        st.info("No employee mailbox connected.")
-
-    if st.button("+ Connect Employee Mailbox", use_container_width=True):
-        new_emp = authorize_new_employee()
-        if new_emp:
-            st.success(f"Verified {new_emp}! Tokens saved with permanent offline refresh.")
-            st.rerun()
+        st.warning("No mailboxes configured.")
+        st.caption("Paste your Google refresh token into Streamlit Secrets to enable automatic syncing.")
 
     st.divider()
 
@@ -444,7 +487,7 @@ with st.sidebar:
     search_q = st.text_input("🔍 Filter Clients", "").strip().lower()
 
 
-# ── STAGE METRICS ─────────────────────────────────────────────
+# ── DASHBOARD METRICS ─────────────────────────────────────────
 clients = st.session_state.clients
 total_c = len(clients)
 inprog_c = len([c for c in clients if c.get("overall_stage") in ("in_progress", "testing", "onboarding")])
@@ -453,7 +496,7 @@ golive_c = len([c for c in clients if c.get("overall_stage") == "go_live"])
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Clients", total_c)
-col2.metric("In Progress / Testing", inprog_c)
+col2.metric("In Development / Testing", inprog_c)
 col3.metric("Confirmed by Client", confirmed_c)
 col4.metric("Go-Live ✓", golive_c)
 
@@ -484,7 +527,7 @@ filtered_clients = [
 
 if not filtered_clients:
     if not clients:
-        st.info("👋 Welcome! Click **'⟳ Sync Team Mailboxes'** and then **'🧠 Analyze Clients (AI)'** in the sidebar to populate the tracker.")
+        st.info("👋 Welcome! Click **'⟳ Sync Team Mailboxes'** and then **'🧠 Analyze Clients (AI)'** in the sidebar to populate your live tracker.")
     else:
         st.info("No clients match your filter.")
 else:
@@ -498,7 +541,6 @@ else:
         client_title = c.get("client_name") or c.get("brand_key")
         handler = c.get("handled_by", "Team")
 
-        # Container row for each client
         with st.container():
             st.markdown(f"""
             <div class="client-card-row">
@@ -517,7 +559,6 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # Row columns: Progress, Modules, and Detail Expander
             rcol1, rcol2 = st.columns([1, 2])
             with rcol1:
                 st.caption(f"Stage Progress: **{int(stage_info['pct']*100)}%**")
@@ -537,7 +578,6 @@ else:
                 else:
                     st.caption("No specific modules extracted.")
 
-            # Expandable full parcel tracking history
             with st.expander(f"📦 View Parcel-Delivery Timeline & Details ({len(timeline)} updates)"):
                 tcol1, tcol2 = st.columns(2)
                 with tcol1:
@@ -588,7 +628,6 @@ if user_q:
     with st.chat_message("user"):
         st.markdown(user_q)
 
-    # Scoped context from emails & clients
     email_snippets = "\n".join([
         f"[{e.get('brand')}] Handled by: {e.get('handled_by')} | Date: {e.get('date')} | Subject: {e.get('subject')}\n{e.get('body','')[:500]}"
         for e in st.session_state.emails[:25]

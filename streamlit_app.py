@@ -61,10 +61,10 @@ GEMINI_API_KEY = get_secret("GEMINI_API_KEY", "")
 clients_data = []
 if CLIENTS_CACHE_FILE.exists():
     try:
-        with open(CLIENT_CACHE_FILE) as f:
+        with open(CLIENTS_CACHE_FILE) as f:
             clients_data = json.load(f)
-    except Exception:
-        pass
+    except Exception as e:
+        print("Error loading clients cache:", e)
 
 # Read static/index.html
 if not HTML_FILE.exists():

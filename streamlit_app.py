@@ -66,6 +66,31 @@ if CLIENTS_CACHE_FILE.exists():
     except Exception as e:
         print("Error loading clients cache:", e)
 
+# Load team accounts
+accounts_data = [
+    {
+        "id": "ankitchowdhary2004@gmail.com.json",
+        "email": "ankitchowdhary2004@gmail.com",
+        "status": "Verified (Permanent Access)"
+    },
+    {
+        "id": "chowdharyankit63@gmail.com.json",
+        "email": "chowdharyankit63@gmail.com",
+        "status": "Verified (Permanent Access)"
+    }
+]
+tokens_dir = BASE_DIR / "tokens"
+if tokens_dir.exists():
+    found_accounts = []
+    for tf in sorted(tokens_dir.glob("*.json")):
+        found_accounts.append({
+            "id": tf.name,
+            "email": tf.stem,
+            "status": "Verified (Permanent Access)"
+        })
+    if found_accounts:
+        accounts_data = found_accounts
+
 # Read static/index.html
 if not HTML_FILE.exists():
     st.error("static/index.html not found.")
@@ -80,9 +105,17 @@ initial_script = f"""
 window.__STREAMLIT_HOSTED__ = true;
 window.__GEMINI_API_KEY__ = "{GEMINI_API_KEY}";
 window.__EMBEDDED_CLIENTS__ = {json.dumps(clients_data)};
+window.__EMBEDDED_ACCOUNTS__ = {json.dumps(accounts_data)};
 
-// Auto-populate on load so Streamlit Cloud displays all 9 clients immediately
+// Auto-populate on load so Streamlit Cloud displays all clients and accounts immediately
 document.addEventListener("DOMContentLoaded", function() {{
+  if (window.__EMBEDDED_ACCOUNTS__ && window.__EMBEDDED_ACCOUNTS__.length > 0) {{
+    window.accounts = window.__EMBEDDED_ACCOUNTS__;
+    const accEl = document.getElementById('accCount');
+    if (accEl) accEl.textContent = window.accounts.length;
+    if (typeof renderAccounts === 'function') renderAccounts();
+  }}
+
   if (window.__EMBEDDED_CLIENTS__ && window.__EMBEDDED_CLIENTS__.length > 0) {{
     window.clientsData = window.__EMBEDDED_CLIENTS__;
     const badge = document.getElementById('statusBadge');

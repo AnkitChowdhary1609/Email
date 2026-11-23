@@ -399,6 +399,14 @@ function toast(msg,ms=2500){
 
 // ── Accounts ───────────────────────────────────────
 async function loadAccounts(){
+  if (window.__EMBEDDED_ACCOUNTS__ && window.__EMBEDDED_ACCOUNTS__.length > 0) {
+    accounts = window.__EMBEDDED_ACCOUNTS__;
+    const accEl = document.getElementById('accCount');
+    if (accEl) accEl.textContent = accounts.length;
+    renderAccounts();
+    return;
+  }
+
   try {
     const r = await fetch('/api/accounts');
     if (r.ok) {
@@ -409,11 +417,16 @@ async function loadAccounts(){
     }
   } catch(e){}
 
-  // Default fallback for hosted mode
+  // Default fallback for hosted mode with all connected team accounts
   accounts = [
     {
       id: "ankitchowdhary2004@gmail.com.json",
       email: "ankitchowdhary2004@gmail.com",
+      status: "Verified (Permanent Access)"
+    },
+    {
+      id: "chowdharyankit63@gmail.com.json",
+      email: "chowdharyankit63@gmail.com",
       status: "Verified (Permanent Access)"
     }
   ];

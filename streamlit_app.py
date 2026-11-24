@@ -233,13 +233,20 @@ window.sendQ = async function() {{
   const clientContext = relevantClient ? JSON.stringify(relevantClient, null, 2) : JSON.stringify((window.clientsData || []).slice(0, 10), null, 2);
 
   const promptText = `You are a project manager assistant analyzing software client onboarding status and emails.
+The 5 client implementation stages are:
+1. Pre-Sales (20% progress)
+2. Kickoff Call (40% progress)
+3. Ops Study (60% progress)
+4. UAT (80% progress)
+5. Go-Live (100% progress)
+
 CLIENT AND RECENT EMAIL DATA:
 ${{clientContext}}
 
 USER QUESTION:
 ${{q}}
 
-Answer clearly, mentioning dates, events, module status, and handling employee if relevant.`;
+Answer clearly, mentioning dates, events, the current implementation stage (Pre-Sales, Kickoff Call, Ops Study, UAT, or Go-Live), module status, and handling employee if relevant.`;
 
   try {{
     const models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.8-flash"];

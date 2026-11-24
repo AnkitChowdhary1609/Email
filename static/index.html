@@ -72,9 +72,15 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .pill-stage{font-size:.68rem;margin-top:2px}
 
 /* STAGE COLORS */
+.stage-presales{color:#3b82f6}
+.stage-kickoff{color:#f59e0b}
+.stage-ops{color:#a855f7}
+.stage-uat{color:#10b981}
+.stage-golive{color:#06b6d4}
+
 .stage-onboarding{color:#3b82f6}
-.stage-in_progress{color:var(--warn)}
-.stage-testing{color:#a855f7}
+.stage-in_progress{color:#a855f7}
+.stage-testing{color:#10b981}
 .stage-client_confirmed{color:#10b981}
 .stage-go_live{color:#06b6d4}
 
@@ -256,11 +262,15 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
 .tl-item{position:relative;margin-bottom:16px}
 .tl-dot{position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg)}
+.tl-dot.pre_sales{background:#3b82f6}
+.tl-dot.kickoff_call{background:#f59e0b}
+.tl-dot.ops_study{background:#a855f7}
+.tl-dot.uat{background:#10b981}
+.tl-dot.go_live{background:#06b6d4}
 .tl-dot.requested{background:var(--stage-requested)}
 .tl-dot.in_development{background:var(--stage-indev)}
 .tl-dot.update_sent{background:var(--stage-sent)}
 .tl-dot.client_confirmed{background:var(--stage-confirmed)}
-.tl-dot.go_live{background:var(--stage-golive)}
 .tl-content{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 13px}
 .tl-event{font-size:.86rem;font-weight:600}
 .tl-meta{display:flex;gap:12px;margin-top:4px;font-size:.74rem;color:var(--muted)}
@@ -398,21 +408,33 @@ const PAL = ['#7c6af7','#f43f5e','#10b981','#f59e0b','#06b6d4','#8b5cf6','#14b8a
 function col(s){ let h=0; for(let c of String(s)) h=(h*31+c.charCodeAt(0))&0xffffffff; return PAL[Math.abs(h)%PAL.length]; }
 function ini(s){ return String(s||'C').slice(0,2).toUpperCase(); }
 
-// ── Stage Config ───────────────────────────────────
+// ── Stage Config (Client Onboarding Lifecycle) ───────
 const STAGES = {
-  onboarding:        {label:'Onboarding',        step:1, pct:15, cls:'stage-onboarding', dot:'#3b82f6'},
-  in_progress:       {label:'In Progress',       step:2, pct:40, cls:'stage-in_progress', dot:'#f59e0b'},
-  testing:           {label:'Testing',           step:3, pct:65, cls:'stage-testing', dot:'#a855f7'},
-  client_confirmed:  {label:'Client Confirmed',  step:4, pct:85, cls:'stage-client_confirmed', dot:'#10b981'},
-  go_live:           {label:'Go Live ✓',         step:5, pct:100, cls:'stage-go_live', dot:'#06b6d4'},
+  pre_sales:         {label:'Pre-Sales',         step:1, pct:20,  cls:'stage-presales', dot:'#3b82f6'},
+  kickoff_call:      {label:'Kickoff Call',      step:2, pct:40,  cls:'stage-kickoff',  dot:'#f59e0b'},
+  ops_study:         {label:'Ops Study',         step:3, pct:60,  cls:'stage-ops',      dot:'#a855f7'},
+  uat:               {label:'UAT',               step:4, pct:80,  cls:'stage-uat',      dot:'#10b981'},
+  go_live:           {label:'Go-Live ✓',         step:5, pct:100, cls:'stage-golive',   dot:'#06b6d4'},
+
+  // Backward compatibility with legacy stage keys
+  onboarding:        {label:'Pre-Sales',         step:1, pct:20,  cls:'stage-presales', dot:'#3b82f6'},
+  in_progress:       {label:'Ops Study',         step:3, pct:60,  cls:'stage-ops',      dot:'#a855f7'},
+  testing:           {label:'UAT',               step:4, pct:80,  cls:'stage-uat',      dot:'#10b981'},
+  client_confirmed:  {label:'UAT',               step:4, pct:80,  cls:'stage-uat',      dot:'#10b981'},
 };
 
 const MOD_ICONS = {
-  requested:         {check:'', checkCls:'req', label:'Requested'},
-  in_development:    {check:'⚙', checkCls:'inprog', label:'In Dev'},
+  pre_sales:         {check:'', checkCls:'req', label:'Pre-Sales'},
+  kickoff_call:      {check:'📞', checkCls:'inprog', label:'Kickoff'},
+  ops_study:         {check:'⚙', checkCls:'inprog', label:'Ops Study'},
+  uat:               {check:'🧪', checkCls:'sent', label:'UAT'},
+  go_live:           {check:'✓', checkCls:'done', label:'Go-Live'},
+
+  requested:         {check:'', checkCls:'req', label:'Pre-Sales'},
+  in_development:    {check:'⚙', checkCls:'inprog', label:'Ops Study'},
+  testing:           {check:'🧪', checkCls:'sent', label:'UAT'},
   update_sent:       {check:'↑', checkCls:'sent', label:'Update Sent'},
-  client_confirmed:  {check:'✓', checkCls:'done', label:'Confirmed'},
-  go_live:           {check:'✓', checkCls:'done', label:'Live'},
+  client_confirmed:  {check:'✓', checkCls:'done', label:'UAT Approved'},
 };
 
 // ── Toast ──────────────────────────────────────────
@@ -655,7 +677,7 @@ function renderRowView(){
   let html = `
     <div class="dash-header">
       <h1>Client Onboarding Tracker</h1>
-      <p>Row-by-row live tracking from requested modules to go-live delivery</p>
+      <p>5-Stage Lifecycle Tracking: Pre-Sales → Kickoff Call → Ops Study → UAT → Go-Live</p>
     </div>
 
     <!-- ONGOING VS LIVE TOGGLE BOXES -->
@@ -665,7 +687,7 @@ function renderRowView(){
           <div class="tab-box-icon">⚡</div>
           <div>
             <div class="tab-box-title">Ongoing Clients</div>
-            <div class="tab-box-desc">Active development, testing & pending confirmations</div>
+            <div class="tab-box-desc">Pre-Sales · Kickoff Call · Ops Study · UAT</div>
           </div>
         </div>
         <div class="tab-box-count" style="color:var(--warn)">${ongoing}</div>
@@ -676,7 +698,7 @@ function renderRowView(){
           <div class="tab-box-icon">🚀</div>
           <div>
             <div class="tab-box-title">Live / Finished Clients</div>
-            <div class="tab-box-desc">Modules completed, approved & live in production</div>
+            <div class="tab-box-desc">Go-Live verified & delivered in production</div>
           </div>
         </div>
         <div class="tab-box-count" style="color:#06b6d4">${live}</div>
@@ -794,12 +816,12 @@ function openDetail(idx){
   const s = STAGES[c.overall_stage] || STAGES.in_progress;
   const currentStep = s.step;
 
-  // Stepper milestones
+  // Stepper milestones (5 Implementation Fields)
   const stepsDef = [
-    { name: '1. Requested', step: 1 },
-    { name: '2. In Dev', step: 2 },
-    { name: '3. Update Sent', step: 3 },
-    { name: '4. Confirmed', step: 4 },
+    { name: '1. Pre-Sales', step: 1 },
+    { name: '2. Kickoff Call', step: 2 },
+    { name: '3. Ops Study', step: 3 },
+    { name: '4. UAT', step: 4 },
     { name: '5. Go-Live ✓', step: 5 },
   ];
   const stepperHtml = stepsDef.map(st => {
@@ -878,7 +900,7 @@ function openDetail(idx){
         </div>
       </div>
 
-      <div class="section-h">Delivery Pipeline (From Request to Go-Live)</div>
+      <div class="section-h">Delivery Pipeline (Pre-Sales → Kickoff Call → Ops Study → UAT → Go-Live)</div>
       <div class="stepper-row">${stepperHtml}</div>
 
       <div class="section-h">Requested Modules Checklist</div>

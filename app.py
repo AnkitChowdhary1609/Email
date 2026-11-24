@@ -268,12 +268,12 @@ Schema:
   "contact_person": "Main client contact person name if mentioned",
   "contact_email": "Client contact email",
   "handled_by": "Name or email of the team employee handling this client",
-  "overall_stage": "one of: onboarding | in_progress | testing | client_confirmed | go_live",
+  "overall_stage": "one of: pre_sales | kickoff_call | ops_study | uat | go_live",
   "summary": "One clear sentence summary of the onboarding/project status",
   "modules": [
     {{
       "name": "Module or feature name",
-      "status": "one of: requested | in_development | update_sent | client_confirmed | go_live",
+      "status": "one of: pre_sales | kickoff_call | ops_study | uat | go_live",
       "notes": "Brief notes on requirements or progress"
     }}
   ],
@@ -283,18 +283,18 @@ Schema:
       "event": "Short event title (max 8 words)",
       "detail": "Brief detail of what happened",
       "actor": "client or team",
-      "stage": "one of: requested | in_development | update_sent | client_confirmed | go_live"
+      "stage": "one of: pre_sales | kickoff_call | ops_study | uat | go_live"
     }}
   ],
   "last_activity": "Date of most recent email"
 }}
 
-Stages:
-- onboarding: Initial conversations, scope definition
-- in_progress: Development started, updates ongoing
-- testing: Modules shared with client for UAT / testing
-- client_confirmed: Client confirmed & approved the update/module
-- go_live: Delivered, working in production / go-live
+Stages (Client Onboarding Lifecycle):
+1. pre_sales: Initial proposals, inquiry, pre-sales scope, pricing, product demo (20% progress)
+2. kickoff_call: Contract signed, kickoff call scheduled or conducted, team introduced (40% progress)
+3. ops_study: Detailed operations study, workflow mapping, system architecture & development (60% progress)
+4. uat: User Acceptance Testing, modules shared with client, test cases, beta feedback (80% progress)
+5. go_live: Successfully launched in production, client sign-off complete (100% progress)
 
 EMAILS:
 {emails}
@@ -340,12 +340,12 @@ def _fallback_client(client_name: str, emails: list[dict], handler: str) -> dict
         "contact_email": emails[0]["from"] if emails else "",
         "contact_person": "",
         "handled_by": handler,
-        "overall_stage": "in_progress",
-        "summary": f"{len(emails)} emails recorded. Status in progress.",
+        "overall_stage": "ops_study",
+        "summary": f"{len(emails)} emails recorded. Operations study / development in progress.",
         "modules": [],
         "timeline": [
             {"date": e["date"], "event": e["subject"][:50],
-             "detail": "", "actor": "client", "stage": "requested"}
+             "detail": "", "actor": "client", "stage": "ops_study"}
             for e in emails[:5]
         ],
         "last_activity": emails[0]["date"] if emails else "",

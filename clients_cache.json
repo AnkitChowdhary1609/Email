@@ -46,7 +46,16 @@
     ],
     "last_activity": "Wed, 27 May 2026 05:33:23 +0000",
     "email_count": 55,
-    "brand_key": "Amazon"
+    "brand_key": "Amazon",
+    "alert": {
+      "is_alert": true,
+      "severity": "warning",
+      "reason": "Discussed Go-Live date is approaching, but onboarding is still stuck in Ops Study / AWS account review.",
+      "action_needed": "Schedule an urgent review call to finalize infrastructure and transition to UAT.",
+      "target_golive_date": "10 Dec 2026"
+    },
+    "target_golive_date": "10 Dec 2026",
+    "awaiting_client_reply": true
   },
   {
     "client_name": "Google",
@@ -95,7 +104,15 @@
     ],
     "last_activity": "Mon, 23 Nov 2026 07:01:58 -0800",
     "email_count": 28,
-    "brand_key": "Google"
+    "brand_key": "Google",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Redditmail",
@@ -144,7 +161,15 @@
     ],
     "last_activity": "Sun, 22 Nov 2026 14:11:45 +0000",
     "email_count": 26,
-    "brand_key": "Redditmail"
+    "brand_key": "Redditmail",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Gamma",
@@ -193,7 +218,15 @@
     ],
     "last_activity": "Wed, 07 Oct 2026 03:08:02 +0000",
     "email_count": 12,
-    "brand_key": "Gamma"
+    "brand_key": "Gamma",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Sheinindia",
@@ -242,7 +275,15 @@
     ],
     "last_activity": "Fri, 20 Nov 2026 18:30:06 +0530 (IST)",
     "email_count": 11,
-    "brand_key": "Sheinindia"
+    "brand_key": "Sheinindia",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Angelbroking",
@@ -291,7 +332,15 @@
     ],
     "last_activity": "Thu, 05 Nov 2026 17:02:39 +0000 (UTC)",
     "email_count": 8,
-    "brand_key": "Angelbroking"
+    "brand_key": "Angelbroking",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Adobe",
@@ -340,7 +389,15 @@
     ],
     "last_activity": "Thu, 19 Nov 2026 21:09:52 -0800",
     "email_count": 6,
-    "brand_key": "Adobe"
+    "brand_key": "Adobe",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Dribbble",
@@ -353,7 +410,16 @@
     "timeline": [],
     "last_activity": "2026-11-19",
     "email_count": 5,
-    "brand_key": "Dribbble"
+    "brand_key": "Dribbble",
+    "alert": {
+      "is_alert": true,
+      "severity": "warning",
+      "reason": "Client has not replied to scope confirmation for more than 5 days.",
+      "action_needed": "Follow up with client account owner on pending scope confirmation.",
+      "target_golive_date": "25 Dec 2026"
+    },
+    "target_golive_date": "25 Dec 2026",
+    "awaiting_client_reply": true
   },
   {
     "client_name": "Sider",
@@ -395,7 +461,15 @@
     ],
     "last_activity": "Tue, 29 Sep 2026 04:30:16 +0000",
     "email_count": 4,
-    "brand_key": "Sider"
+    "brand_key": "Sider",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Claude",
@@ -437,7 +511,15 @@
     ],
     "last_activity": "Mon, 06 Jul 2026 07:35:35 +0000",
     "email_count": 4,
-    "brand_key": "Claude"
+    "brand_key": "Claude",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Canva",
@@ -479,7 +561,15 @@
     ],
     "last_activity": "Fri, 20 Nov 2026 13:26:25 +0000 (UTC)",
     "email_count": 4,
-    "brand_key": "Canva"
+    "brand_key": "Canva",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Stack Overflow",
@@ -492,7 +582,15 @@
     "timeline": [],
     "last_activity": "Wed, 18 Nov 2026",
     "email_count": 4,
-    "brand_key": "Stackoverflow"
+    "brand_key": "Stackoverflow",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Semrush",
@@ -534,7 +632,15 @@
     ],
     "last_activity": "Tue, 17 Nov 2026 16:54:15 +0000",
     "email_count": 4,
-    "brand_key": "Semrush"
+    "brand_key": "Semrush",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Razorpay",
@@ -569,7 +675,15 @@
     ],
     "last_activity": "Fri, 20 Nov 2026 19:15:30 +0530 (IST)",
     "email_count": 3,
-    "brand_key": "Razorpay"
+    "brand_key": "Razorpay",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "OpenAI",
@@ -604,7 +718,15 @@
     ],
     "last_activity": "Thu, 19 Nov 2026 16:33:41 +0000 (UTC)",
     "email_count": 3,
-    "brand_key": "OpenAI"
+    "brand_key": "OpenAI",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Workinsync",
@@ -638,7 +760,16 @@
     ],
     "last_activity": "Fri, 20 Nov 2026",
     "email_count": 2,
-    "brand_key": "Workinsync"
+    "brand_key": "Workinsync",
+    "alert": {
+      "is_alert": true,
+      "severity": "critical",
+      "reason": "Client has not confirmed UAT test trials for more than 5 days \u2014 directly risks scheduled Go-Live delivery.",
+      "action_needed": "Call client testing lead to confirm test trial schedule today.",
+      "target_golive_date": "05 Dec 2026"
+    },
+    "target_golive_date": "05 Dec 2026",
+    "awaiting_client_reply": true
   },
   {
     "client_name": "Anthropic",
@@ -659,7 +790,16 @@
     ],
     "last_activity": "03 Oct 2026",
     "email_count": 1,
-    "brand_key": "Anthropic"
+    "brand_key": "Anthropic",
+    "alert": {
+      "is_alert": true,
+      "severity": "critical",
+      "reason": "Client has not replied to confirmation for more than 5 days \u2014 delays Kickoff Call and affects Go-Live date.",
+      "action_needed": "Send urgent follow-up reminder to client regarding interview confirmation.",
+      "target_golive_date": "15 Dec 2026"
+    },
+    "target_golive_date": "15 Dec 2026",
+    "awaiting_client_reply": true
   },
   {
     "client_name": "YouTube",
@@ -680,7 +820,15 @@
     ],
     "last_activity": "Tue, 29 Sep 2026 16:55:43 -0700",
     "email_count": 1,
-    "brand_key": "YouTube"
+    "brand_key": "YouTube",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "DoSelect",
@@ -707,7 +855,15 @@
     ],
     "last_activity": "23 Sep 2024",
     "email_count": 1,
-    "brand_key": "Doselect"
+    "brand_key": "Doselect",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Signup",
@@ -734,7 +890,16 @@
     ],
     "last_activity": "16 Sep 2024",
     "email_count": 1,
-    "brand_key": "Signup"
+    "brand_key": "Signup",
+    "alert": {
+      "is_alert": true,
+      "severity": "critical",
+      "reason": "Awaiting email verification confirmation for more than 5 days \u2014 blocks AWS setup and delays Go-Live.",
+      "action_needed": "Resend verification code and ping client handler on WhatsApp/email.",
+      "target_golive_date": "20 Dec 2026"
+    },
+    "target_golive_date": "20 Dec 2026",
+    "awaiting_client_reply": true
   },
   {
     "client_name": "Mozilla",
@@ -761,7 +926,15 @@
     ],
     "last_activity": "21 Nov 2026",
     "email_count": 1,
-    "brand_key": "Mozilla"
+    "brand_key": "Mozilla",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Kaggle",
@@ -782,7 +955,15 @@
     ],
     "last_activity": "Wed, 18 Nov 2026 13:59:16 -0800",
     "email_count": 1,
-    "brand_key": "Kaggle"
+    "brand_key": "Kaggle",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Elfsightdigest",
@@ -803,7 +984,15 @@
     ],
     "last_activity": "Wed, 11 Nov 2026 21:59:32 +0000",
     "email_count": 1,
-    "brand_key": "Elfsightdigest"
+    "brand_key": "Elfsightdigest",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Commudle",
@@ -824,7 +1013,15 @@
     ],
     "last_activity": "Tue, 10 Nov 2026 11:46:14 +0000",
     "email_count": 1,
-    "brand_key": "Commudle"
+    "brand_key": "Commudle",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   },
   {
     "client_name": "Cdslstatement",
@@ -851,6 +1048,14 @@
     ],
     "last_activity": "2026-11-08",
     "email_count": 1,
-    "brand_key": "Cdslstatement"
+    "brand_key": "Cdslstatement",
+    "alert": {
+      "is_alert": false,
+      "severity": "none",
+      "reason": "",
+      "action_needed": ""
+    },
+    "target_golive_date": null,
+    "awaiting_client_reply": false
   }
 ]

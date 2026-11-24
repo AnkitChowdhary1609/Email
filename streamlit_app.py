@@ -246,7 +246,7 @@ ${{clientContext}}
 USER QUESTION:
 ${{q}}
 
-Answer clearly, mentioning dates, events, the current implementation stage (Pre-Sales, Kickoff Call, Ops Study, UAT, or Go-Live), module status, and handling employee if relevant.`;
+Answer clearly, mentioning dates, events, the current implementation stage (Pre-Sales, Kickoff Call, Ops Study, UAT, or Go-Live), alert status (if awaiting confirmation >5 days or Go-Live is at risk), module status, and handling employee if relevant.`;
 
   try {{
     const models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.8-flash"];

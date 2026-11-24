@@ -104,18 +104,18 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .stat-box .s-val{font-size:1.6rem;font-weight:800}
 .stat-box .s-label{font-size:.72rem;color:var(--muted);margin-top:2px}
 
-/* ═════ ONGOING VS LIVE TOGGLE BOXES ═════ */
+/* ═════ ONGOING VS ALERTS VS LIVE TOGGLE BOXES ═════ */
 .tab-boxes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
   margin-bottom: 22px;
 }
 .tab-box {
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 22px;
+  padding: 14px 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -133,6 +133,11 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
   background: #1e1b3a;
   box-shadow: 0 4px 20px rgba(124, 106, 247, 0.22);
 }
+.tab-box.alert.active {
+  border-color: #ef4444;
+  background: #2a1215;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
+}
 .tab-box.live.active {
   border-color: #06b6d4;
   background: #0d2530;
@@ -141,23 +146,60 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .tab-box-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .tab-box-icon {
-  font-size: 1.7rem;
+  font-size: 1.6rem;
 }
 .tab-box-title {
-  font-size: 1.08rem;
+  font-size: 1.02rem;
   font-weight: 800;
   letter-spacing: -0.2px;
 }
 .tab-box-desc {
-  font-size: 0.77rem;
+  font-size: 0.74rem;
   color: var(--muted);
   margin-top: 3px;
 }
 .tab-box-count {
-  font-size: 2.1rem;
+  font-size: 1.9rem;
+  font-weight: 900;
+  padding-left: 10px;
+}
+
+/* ALERTS & AT-RISK CALLOUTS */
+.alert-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  margin-top: 5px;
+}
+.detail-alert-box {
+  background: #2a1114;
+  border: 1.5px solid #ef4444;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+  color: #fecaca;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.18);
+}
+.alert-severity-badge {
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
   font-weight: 900;
   padding-left: 14px;
 }
@@ -619,7 +661,7 @@ async function doAnalyze(){
   }, 1000);
 }
 
-// ── Current View Tab ('ongoing' | 'live') ──────────
+// ── Current View Tab ('ongoing' | 'alerts' | 'live') ──
 window.currentTab = 'ongoing';
 function setTab(tab){
   window.currentTab = tab;
@@ -633,7 +675,12 @@ function renderSidebar(){
   list.innerHTML='';
   window.clientsData.forEach((c, idx)=>{
     const isLive = c.overall_stage === 'go_live';
-    const isCurrentTab = (window.currentTab === 'live') === isLive;
+    const isAlert = Boolean(c.alert && c.alert.is_alert);
+    let isCurrentTab = false;
+    if (window.currentTab === 'live') isCurrentTab = isLive;
+    else if (window.currentTab === 'alerts') isCurrentTab = isAlert;
+    else isCurrentTab = !isLive;
+
     const s = STAGES[c.overall_stage]||STAGES.in_progress;
     const div=document.createElement('div');
     div.className='client-pill'+(idx===selectedIndex?' active':'');
@@ -641,13 +688,18 @@ function renderSidebar(){
       div.style.opacity = '0.45';
     }
     div.onclick=()=>{
-      window.currentTab = isLive ? 'live' : 'ongoing';
+      if (isLive) window.currentTab = 'live';
+      else if (isAlert && window.currentTab === 'alerts') window.currentTab = 'alerts';
+      else window.currentTab = 'ongoing';
       openDetail(idx);
     };
     div.innerHTML=`
       <div class="pill-avatar" style="background:${col(c.brand_key)}">${ini(c.client_name||c.brand_key)}</div>
       <div class="pill-info">
-        <div class="pill-name">${c.client_name||c.brand_key}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="pill-name">${c.client_name||c.brand_key}</span>
+          ${isAlert ? '<span style="color:#ef4444;font-size:.7rem" title="Alert: At risk">⚠️</span>' : ''}
+        </div>
         <div class="pill-stage ${s.cls}">${s.label}</div>
       </div>`;
     list.appendChild(div);
@@ -668,11 +720,19 @@ function renderRowView(){
 
   const total = window.clientsData.length;
   const ongoingClients = window.clientsData.map((c, idx) => ({ ...c, originalIndex: idx })).filter(c => c.overall_stage !== 'go_live');
+  const alertClients = window.clientsData.map((c, idx) => ({ ...c, originalIndex: idx })).filter(c => Boolean(c.alert && c.alert.is_alert));
   const liveClients = window.clientsData.map((c, idx) => ({ ...c, originalIndex: idx })).filter(c => c.overall_stage === 'go_live');
+
   const ongoing = ongoingClients.length;
+  const alertsCount = alertClients.length;
   const live = liveClients.length;
 
-  const displayClients = window.currentTab === 'live' ? liveClients : ongoingClients;
+  let displayClients = ongoingClients;
+  if (window.currentTab === 'live') {
+    displayClients = liveClients;
+  } else if (window.currentTab === 'alerts') {
+    displayClients = alertClients;
+  }
 
   let html = `
     <div class="dash-header">
@@ -680,7 +740,7 @@ function renderRowView(){
       <p>5-Stage Lifecycle Tracking: Pre-Sales → Kickoff Call → Ops Study → UAT → Go-Live</p>
     </div>
 
-    <!-- ONGOING VS LIVE TOGGLE BOXES -->
+    <!-- ONGOING VS ALERTS VS LIVE TOGGLE BOXES -->
     <div class="tab-boxes">
       <div class="tab-box ${window.currentTab==='ongoing'?'active':''}" onclick="setTab('ongoing')">
         <div class="tab-box-left">
@@ -691,6 +751,17 @@ function renderRowView(){
           </div>
         </div>
         <div class="tab-box-count" style="color:var(--warn)">${ongoing}</div>
+      </div>
+
+      <div class="tab-box alert ${window.currentTab==='alerts'?'active':''}" onclick="setTab('alerts')">
+        <div class="tab-box-left">
+          <div class="tab-box-icon">🚨</div>
+          <div>
+            <div class="tab-box-title">Critical Alerts / At Risk</div>
+            <div class="tab-box-desc">>5 days no reply or Go-Live at risk</div>
+          </div>
+        </div>
+        <div class="tab-box-count" style="color:#ef4444">${alertsCount}</div>
       </div>
 
       <div class="tab-box live ${window.currentTab==='live'?'active':''}" onclick="setTab('live')">
@@ -715,11 +786,24 @@ function renderRowView(){
     <div class="rows-container">`;
 
   if (!displayClients.length) {
+    let emptyIcon = '⚡';
+    let emptyTitle = 'No Ongoing Clients';
+    let emptyDesc = 'All client requests have finished!';
+    if (window.currentTab === 'alerts') {
+      emptyIcon = '🎉';
+      emptyTitle = 'No Critical Alerts!';
+      emptyDesc = 'All client confirmations and Go-Live milestones are on track without delays.';
+    } else if (window.currentTab === 'live') {
+      emptyIcon = '🚀';
+      emptyTitle = 'No Live Clients Yet';
+      emptyDesc = 'Clients will move here once their stage reaches Go-Live.';
+    }
+
     html += `
       <div class="center-msg" style="height:32vh">
-        <div class="icon">${window.currentTab === 'live' ? '🚀' : '⚡'}</div>
-        <h2>${window.currentTab === 'live' ? 'No Live Clients Yet' : 'No Ongoing Clients'}</h2>
-        <p>${window.currentTab === 'live' ? 'Clients will move here once their stage reaches Go Live.' : 'All client requests have finished!'}</p>
+        <div class="icon">${emptyIcon}</div>
+        <h2>${emptyTitle}</h2>
+        <p>${emptyDesc}</p>
       </div>`;
   } else {
     displayClients.forEach((c) => {
@@ -772,6 +856,7 @@ function renderRowView(){
               <div class="client-title">${c.client_name || c.brand_key}</div>
               <div class="client-sub">${c.contact_email || '—'}</div>
               ${c.handled_by ? `<div class="handler-tag">👤 ${c.handled_by}</div>` : ''}
+              ${(c.alert && c.alert.is_alert) ? `<div class="alert-pill">⚠️ ${c.alert.reason}</div>` : ''}
             </div>
           </div>
 
@@ -879,9 +964,27 @@ function openDetail(idx){
     tlHtml = '<div style="color:var(--muted);font-size:.85rem;padding:8px 0">No timeline updates recorded.</div>';
   }
 
+  let alertCalloutHtml = '';
+  if (c.alert && c.alert.is_alert) {
+    alertCalloutHtml = `
+      <div class="detail-alert-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:.95rem">
+            <span>🚨 Onboarding Alert</span>
+            <span class="alert-severity-badge">${c.alert.severity || 'Critical'}</span>
+          </div>
+          ${c.target_golive_date ? `<div style="font-size:.78rem;color:#fecaca"><strong>Target Go-Live:</strong> ${c.target_golive_date}</div>` : ''}
+        </div>
+        <div style="font-size:.85rem;margin-top:6px;line-height:1.5">${c.alert.reason}</div>
+        <div style="font-size:.8rem;color:#fca5a5;margin-top:8px;font-weight:600">⚡ <strong>Action Needed:</strong> ${c.alert.action_needed || 'Follow up with client immediately.'}</div>
+      </div>`;
+  }
+
   document.getElementById('mainArea').innerHTML = `
     <div class="detail-panel">
       <div class="detail-back" onclick="renderRowView()">← Back to Row Dashboard</div>
+
+      ${alertCalloutHtml}
 
       <div class="detail-top">
         <div class="detail-avatar" style="background:${col(c.brand_key)}">${ini(c.client_name || c.brand_key)}</div>

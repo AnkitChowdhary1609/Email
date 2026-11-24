@@ -270,6 +270,14 @@ Schema:
   "handled_by": "Name or email of the team employee handling this client",
   "overall_stage": "one of: pre_sales | kickoff_call | ops_study | uat | go_live",
   "summary": "One clear sentence summary of the onboarding/project status",
+  "target_golive_date": "Target Go-Live date if mentioned (e.g. '15 Dec 2026'), or null",
+  "awaiting_client_reply": "true if team sent update/confirmation and is waiting for client reply, false otherwise",
+  "alert": {{
+    "is_alert": "true if client has not replied for >5 days or if Go-Live is approaching but stuck in starting steps, false otherwise",
+    "severity": "one of: critical | warning | none",
+    "reason": "Explain why this client is at risk (e.g., 'No reply for >5 days to confirmation — delays Go-Live schedule', 'Go-Live date is approaching but stuck in Pre-Sales')",
+    "action_needed": "Immediate action required from the team"
+  }},
   "modules": [
     {{
       "name": "Module or feature name",
@@ -342,6 +350,9 @@ def _fallback_client(client_name: str, emails: list[dict], handler: str) -> dict
         "handled_by": handler,
         "overall_stage": "ops_study",
         "summary": f"{len(emails)} emails recorded. Operations study / development in progress.",
+        "target_golive_date": None,
+        "awaiting_client_reply": False,
+        "alert": {"is_alert": False, "severity": "none", "reason": "", "action_needed": ""},
         "modules": [],
         "timeline": [
             {"date": e["date"], "event": e["subject"][:50],
